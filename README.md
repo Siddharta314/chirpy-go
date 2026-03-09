@@ -13,3 +13,7 @@ type Handler interface {
 type HandlerFunc func(ResponseWriter, *Request)
 ```
 Any type with a ServeHTTP method that matches the http.HandlerFunc signature above is an http.Handler To handle an incoming HTTP request, all a function needs is a way to write a response and the request itself.
+
+
+## Stateful handlers
+The atomic.Int32 type is a thread-safe integer type that allows us to safely increment and read an integer value.
