@@ -25,5 +25,11 @@ func (apiCfg *apiConfig) metricsHandler(w http.ResponseWriter, r *http.Request) 
 
 func (apiCfg *apiConfig) resetHandler(w http.ResponseWriter, r *http.Request) {
 	apiCfg.fileserverHits.Store(0)
+	if apiCfg.platform == "dev" {
+		apiCfg.db.DeleteUsers(r.Context())
+	} else {
+		http.Error(w, "Not allowed", http.StatusForbidden)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 }
