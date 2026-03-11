@@ -6,37 +6,14 @@ import (
 	"strings"
 )
 
-
-func validateChirp(w http.ResponseWriter, r *http.Request) {
-	type parameters struct{
-		Body string `json:"body"`
-	}
-	decoder := json.NewDecoder(r.Body)
-	params := parameters{}
-	err := decoder.Decode(&params)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid request body")
-		return
-	}
-
-	if len(params.Body) > 140 {
-		respondWithError(w, http.StatusBadRequest, "Chirp is too long")
-		return
-	}
-	type MyResponse struct {
-		CleanedBody string `json:"cleaned_body"`
-	}
-	cleanBody := cleanBody(params.Body)
-	respondWithJSON(w, http.StatusOK, MyResponse{CleanedBody: cleanBody})
-
-}
-
 func respondWithError(w http.ResponseWriter, code int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 
 	w.WriteHeader(code)
 	respondWithJSON(w, code, map[string]string{"error": msg})
 }
+
+
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
@@ -59,6 +36,7 @@ func cleanBody(body string) string {
 	return body
 }
 
+
 func checkProfane(body string) bool {
 	bodyLower := strings.ToLower(body)
 	profaneWords := []string{"kerfuffle", "sharbert", "fornax"}
@@ -69,3 +47,27 @@ func checkProfane(body string) bool {
 	}
 	return false
 }
+
+// func validateChirp(w http.ResponseWriter, r *http.Request) {
+// 	type parameters struct{
+// 		Body string `json:"body"`
+// 	}
+// 	decoder := json.NewDecoder(r.Body)
+// 	params := parameters{}
+// 	err := decoder.Decode(&params)
+// 	if err != nil {
+// 		respondWithError(w, http.StatusBadRequest, "Invalid request body")
+// 		return
+// 	}
+
+// 	if len(params.Body) > 140 {
+// 		respondWithError(w, http.StatusBadRequest, "Chirp is too long")
+// 		return
+// 	}
+// 	type MyResponse struct {
+// 		CleanedBody string `json:"cleaned_body"`
+// 	}
+// 	cleanBody := cleanBody(params.Body)
+// 	respondWithJSON(w, http.StatusOK, MyResponse{CleanedBody: cleanBody})
+
+// }
