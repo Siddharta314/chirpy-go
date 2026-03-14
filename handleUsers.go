@@ -26,12 +26,12 @@ func (apiCfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 	var params parameters
 	err := decoder.Decode(&params)
 	if err != nil {
-		http.Error(w, "Error parsing request body", http.StatusInternalServerError)
+		respondWithError(w, http.StatusBadRequest, "Error parsing request body")
 		return
 	}
 	hashed_password, err := auth.HashPassword(params.Password)
 	if err != nil {
-		http.Error(w, "Error hashing password", http.StatusInternalServerError)
+		respondWithError(w, http.StatusInternalServerError, "Error hashing password")
 		return
 	}
 	user, err := apiCfg.db.CreateUser(r.Context(), database.CreateUserParams{
@@ -39,10 +39,42 @@ func (apiCfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 		HashedPassword: hashed_password,
 	})
 	if err != nil {
-		http.Error(w, "Error creating user", http.StatusInternalServerError)
+		respondWithError(w, http.StatusInternalServerError, "Couldn't create user")
 		return
 	}
 	respondWithJSON(w, 201, User{
+		ID:        user.ID,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		Email:     user.Email,
+	})
+}
+
+
+func (apiCfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
+	type parameters struct{
+		Email string `json:"email"`
+		Password string `json:"password"`
+	}
+	decoder := json.NewDecoder(r.Body)
+	var params parameters
+	err := decoder.Decode(&params)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	user, err := apiCfg.db.GetUserByEmail(r.Context(), params.Email)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Incorrect email or password")
+		return
+	}
+	correct, err := auth.CheckPasswordHash(params.Password, user.HashedPassword)
+	if err != nil || !correct{
+		respondWithError(w, http.StatusUnauthorized, "Incorrect email or password")
+		return
+	}
+	respondWithJSON(w, http.StatusOK, User{
 		ID:        user.ID,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
