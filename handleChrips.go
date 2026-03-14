@@ -52,7 +52,7 @@ func (apiCfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 
 
 func (apiCfg *apiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
-dbChirps, err := apiCfg.db.GetChirps(r.Context())
+	dbChirps, err := apiCfg.db.GetChirps(r.Context())
     if err != nil {
         respondWithError(w, http.StatusInternalServerError, "Error getting chirps")
         return
@@ -70,4 +70,26 @@ dbChirps, err := apiCfg.db.GetChirps(r.Context())
     }
 
     respondWithJSON(w, 200, chirps)
+}
+
+
+func (apiCfg *apiConfig) getChirpByID(w http.ResponseWriter, r *http.Request) {
+	chipID := r.PathValue("chirpID")
+	if chipID == ""{
+		respondWithError(w, http.StatusBadRequest, "Chirp ID is required")
+		return
+	}
+	dbChirp, err := apiCfg.db.GetChirpByID(r.Context(), uuid.MustParse(chipID))
+    if err != nil {
+        respondWithError(w, http.StatusNotFound, "Chirp not found")
+        return
+    }
+	chirp := Chirp{
+		ID:        dbChirp.ID,
+		CreatedAt: dbChirp.CreatedAt,
+		UpdatedAt: dbChirp.UpdatedAt,
+		Body:      dbChirp.Body,
+		UserID:    dbChirp.UserID,
+	}
+	respondWithJSON(w, 200, chirp)
 }

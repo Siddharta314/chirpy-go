@@ -58,6 +58,7 @@ func main(){
 
 	mux.HandleFunc("POST /api/chirps", apiCfg.createChirp)
 	mux.HandleFunc("GET /api/chirps", apiCfg.getChirps)
+	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.getChirpByID)
 
 	server := http.Server{
 		Addr:    ":8080",
