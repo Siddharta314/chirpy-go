@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Siddharta314/chirpygo/internal/auth"
+	"github.com/Siddharta314/chirpygo/internal/database"
 	"github.com/google/uuid"
 )
 
@@ -18,6 +20,7 @@ type User struct {
 func (apiCfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 	type parameters struct{
 		Email string `json:"email"`
+		Password string `json:"password"`
 	}
 	decoder := json.NewDecoder(r.Body)
 	var params parameters
@@ -26,8 +29,15 @@ func (apiCfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error parsing request body", http.StatusInternalServerError)
 		return
 	}
-
-	user, err := apiCfg.db.CreateUser(r.Context(), params.Email)
+	hashed_password, err := auth.HashPassword(params.Password)
+	if err != nil {
+		http.Error(w, "Error hashing password", http.StatusInternalServerError)
+		return
+	}
+	user, err := apiCfg.db.CreateUser(r.Context(), database.CreateUserParams{
+		Email: params.Email,
+		HashedPassword: hashed_password,
+	})
 	if err != nil {
 		http.Error(w, "Error creating user", http.StatusInternalServerError)
 		return
