@@ -17,6 +17,7 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	db             *database.Queries
 	platform       string
+	jwtSecret      string
 }
 
 func main(){
@@ -25,21 +26,23 @@ func main(){
 		log.Fatal("Error loading .env file")
 	}
 	dbURL := os.Getenv("DB_URL")
+	jwtSecret := os.Getenv("JWT_SECRET")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		panic(err)
 	}
 	err = db.Ping()
 	if err != nil {
-		log.Fatal("No se pudo conectar a la DB:", err)
+		log.Fatal("Can't connect to DB:", err)
 	}
 	defer db.Close()
 	dbQueries := database.New(db)
 
 
 	apiCfg := apiConfig{
-		db:       dbQueries,
-		platform: os.Getenv("PLATFORM"),
+		db:        dbQueries,
+		platform:  os.Getenv("PLATFORM"),
+		jwtSecret: jwtSecret,
 	}
 
 	mux := http.NewServeMux()
