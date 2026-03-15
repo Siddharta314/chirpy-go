@@ -17,6 +17,11 @@ type User struct {
     Email     string    `json:"email"`
 }
 
+type LoginResponse struct {
+    User
+    Token string `json:"token"`
+}
+
 func (apiCfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 	type parameters struct{
 		Email string `json:"email"`
@@ -55,6 +60,7 @@ func (apiCfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 	type parameters struct{
 		Email string `json:"email"`
 		Password string `json:"password"`
+		ExpiresIn int `json:"expires_in_seconds"`
 	}
 	decoder := json.NewDecoder(r.Body)
 	var params parameters
@@ -62,6 +68,9 @@ func (apiCfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
+	}
+	if params.ExpiresIn == 0 {
+		params.ExpiresIn = 60 * 60  // 1 hour
 	}
 
 	user, err := apiCfg.db.GetUserByEmail(r.Context(), params.Email)
@@ -74,10 +83,19 @@ func (apiCfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusUnauthorized, "Incorrect email or password")
 		return
 	}
-	respondWithJSON(w, http.StatusOK, User{
-		ID:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
+
+	token, err := auth.MakeJWT(user.ID, apiCfg.jwtSecret, time.Duration(params.ExpiresIn)*time.Second)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error creating token")
+		return
+	}
+	respondWithJSON(w, http.StatusOK, LoginResponse{
+		User: User{
+			ID:        user.ID,
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
+			Email:     user.Email,
+		},
+		Token: token,
 	})
 }
