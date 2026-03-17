@@ -48,7 +48,7 @@ func (apiCfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't create user")
 		return
 	}
-	respondWithJSON(w, 201, User{
+	respondWithJSON(w, http.StatusCreated, User{
 		ID:        user.ID,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
@@ -56,6 +56,55 @@ func (apiCfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (apiCfg *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
+	type parameters struct{
+		Email string `json:"email"`
+		Password string `json:"password"`
+	}
+	//get user with token
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	userID, err := auth.ValidateJWT(token, apiCfg.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	//decode req body
+	decoder := json.NewDecoder(r.Body)
+	var params parameters
+	err = decoder.Decode(&params)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Error parsing request body")
+		return
+	}
+	hashed_password, err := auth.HashPassword(params.Password)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error hashing password")
+		return
+	}
+
+	//call database to update user
+	user, err := apiCfg.db.UpdateUser(r.Context(), database.UpdateUserParams{
+		ID: userID,
+		Email: params.Email,
+		HashedPassword: hashed_password,
+	})
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't update user")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, User{
+		ID:        user.ID,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		Email:     user.Email,
+	})
+}
 
 func (apiCfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 	type parameters struct{
