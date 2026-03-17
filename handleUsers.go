@@ -20,6 +20,7 @@ type User struct {
 type LoginResponse struct {
     User
     Token string `json:"token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 func (apiCfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +61,6 @@ func (apiCfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 	type parameters struct{
 		Email string `json:"email"`
 		Password string `json:"password"`
-		ExpiresIn int `json:"expires_in_seconds"`
 	}
 	decoder := json.NewDecoder(r.Body)
 	var params parameters
@@ -69,9 +69,7 @@ func (apiCfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
-	if params.ExpiresIn == 0 {
-		params.ExpiresIn = 60 * 60  // 1 hour
-	}
+
 
 	user, err := apiCfg.db.GetUserByEmail(r.Context(), params.Email)
 	if err != nil {
@@ -84,11 +82,25 @@ func (apiCfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := auth.MakeJWT(user.ID, apiCfg.jwtSecret, time.Duration(params.ExpiresIn)*time.Second)
+	token, err := auth.MakeJWT(user.ID, apiCfg.jwtSecret, time.Duration(60*60)*time.Second)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error creating token")
 		return
 	}
+	refreshTokenStr:= auth.MakeRefreshToken()
+    if refreshTokenStr == "" {
+        respondWithError(w, http.StatusInternalServerError, "Couldn't create refresh token")
+        return
+    }
+	_, err = apiCfg.db.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
+        Token:     refreshTokenStr,
+        UserID:    user.ID,
+        ExpiresAt: time.Now().AddDate(0, 0, 60),
+    })
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, "Couldn't save refresh token")
+        return
+    }
 	respondWithJSON(w, http.StatusOK, LoginResponse{
 		User: User{
 			ID:        user.ID,
@@ -97,5 +109,6 @@ func (apiCfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 			Email:     user.Email,
 		},
 		Token: token,
+		RefreshToken: refreshTokenStr,
 	})
 }
