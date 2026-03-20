@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -15,6 +16,7 @@ type User struct {
     CreatedAt time.Time `json:"created_at"`
     UpdatedAt time.Time `json:"updated_at"`
     Email     string    `json:"email"`
+	IsChirpyRed  bool      `json:"is_chirpy_red"`
 }
 
 type LoginResponse struct {
@@ -53,6 +55,7 @@ func (apiCfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Email:     user.Email,
+		IsChirpyRed: user.IsChirpyRed,
 	})
 }
 
@@ -103,6 +106,7 @@ func (apiCfg *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Email:     user.Email,
+		IsChirpyRed: user.IsChirpyRed,
 	})
 }
 
@@ -156,8 +160,40 @@ func (apiCfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 			CreatedAt: user.CreatedAt,
 			UpdatedAt: user.UpdatedAt,
 			Email:     user.Email,
+			IsChirpyRed: user.IsChirpyRed,
 		},
 		Token: token,
 		RefreshToken: refreshTokenStr,
 	})
+}
+
+
+func (apiCfg *apiConfig) pokaWebhookHandler(w http.ResponseWriter, r *http.Request) {
+	type parameters struct{
+		Event string `json:"event"`
+		Data struct {
+			UserID uuid.UUID `json:"user_id"`
+		} `json:"data"`
+	}
+	var params parameters
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&params)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	if params.Event != "user.upgraded" {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	_, err = apiCfg.db.UpgradeUserRed(r.Context(), params.Data.UserID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+            respondWithError(w, http.StatusNotFound, "User not found")
+            return
+        }
+		respondWithError(w, http.StatusInternalServerError, "Error updating user plan")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
