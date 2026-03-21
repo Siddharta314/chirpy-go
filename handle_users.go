@@ -168,16 +168,21 @@ func (apiCfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 
-func (apiCfg *apiConfig) pokaWebhookHandler(w http.ResponseWriter, r *http.Request) {
+func (apiCfg *apiConfig) polkaWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	type parameters struct{
 		Event string `json:"event"`
 		Data struct {
 			UserID uuid.UUID `json:"user_id"`
 		} `json:"data"`
 	}
+	apiKey, err := auth.GetAPIKey(r.Header)
+	if err != nil || apiKey != apiCfg.polkaKey {
+		respondWithError(w, http.StatusUnauthorized, "Invalid API key")
+		return
+	}
 	var params parameters
 	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&params)
+	err = decoder.Decode(&params)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
