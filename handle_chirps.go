@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/Siddharta314/chirpygo/internal/auth"
@@ -92,6 +93,14 @@ func (apiCfg *apiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
         })
     }
 
+	//ordering, we trust in the db by default asc.
+	sortOrder := r.URL.Query().Get("sort")
+	if sortOrder == "desc" {
+		sort.Slice(chirps, func(i, j int) bool {
+			return chirps[i].CreatedAt.After(chirps[j].CreatedAt)
+		})
+	}
+	
     respondWithJSON(w, 200, chirps)
 }
 
